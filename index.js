@@ -1,4 +1,10 @@
 import fetch from 'node-fetch'
+import * as googleTTS from 'google-tts-api'
+import { fileFromPath } from "formdata-node/file-from-path"
+import { FormData } from "formdata-node"
+import { createWriteStream } from 'fs';
+import { pipeline } from 'stream';
+import { promisify } from 'util'
 
 class Bot {
     constructor () {
@@ -57,20 +63,36 @@ class Bot {
         return messageChain.filter(x => ["GroupMessage", "FriendMessage"].includes(x.type))
     }
 
-    async sendGroupMessage(target) {
+    async sendGroupMessage(target, messageChain) {
         let url = new URL(`${this.baseUrl}/sendGroupMessage`)
         let data = { sessionKey: this.sessionKey,
-            target: target,
-            messageChain: [
-                { "type": "Plain", "text": "Hello World" },
-                { "type":"Image", "url":"https://conix.ml" }
-            ]
+            target,
+            messageChain
         }
         await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
+    }
+
+    async uploadGroupFile(target, fileUrl, fileName) {
+        let url = new URL(`${this.baseUrl}/file/upload`)
+        const form = new FormData()
+
+        const streamPipeline = promisify(pipeline);
+        const response = await fetch(fileUrl);
+        if (!response.ok) { //无法fetch对应文件
+            this.sendGroupMessage(target, { "type": "Plain", "text": `unexpected response ${response.statusText}`})
+            return
+        }
+        await streamPipeline(response.body, createWriteStream(`/root/conixBot-Node/temp/${fileName}`)) //将响应生成为文件
+        form.set("sessionKey", this.sessionKey)
+        form.set("type", "group")
+        form.set("target", target)
+        form.set("path", "")
+        form.set("file", await fileFromPath(`/root/conixBot-Node/temp/${fileName}`))
+        fetch(url, { method: 'POST', body: form}) //向上传群文件接口发送请求
     }
 }
 
@@ -84,12 +106,48 @@ setInterval(async () => { //定时器需要设置为async函数
         let messages = await conixBot.fetchMessage(count)
         console.log(`接受到${messages.length}条消息`)
         for (let m of messages) {
-            let sender = m.sender.group.id
-            let messageChain = m.messageChain
+            let sender = m.sender.group.id //群号
+            let messageChain = m.messageChain //分析群友的消息
             let text = messageChain[1].type == "Plain" ? messageChain[1].text : ""
-            if (text == "#hi") {
-                conixBot.sendGroupMessage(sender)
-                console.log(`检测到命令，发送回应`)
+            console.log(`text: ${text}`)
+            switch (true) {
+                case text.slice(0, 3) == "#hi": {
+                    const messageChain = [
+                        { "type": "Plain", "text": "Hello World" },
+                        { "type":"Image", "url":"https://conix.ml" }
+                    ]
+                    conixBot.sendGroupMessage(sender, messageChain)
+                    console.log(`检测到命令，发送回应`)
+                    break
+                }
+                case text.slice(0, 4) == "#say": {
+                    const content = text.slice(5)
+                    const url = googleTTS.getAudioUrl(content, {
+                        lang: 'zh',
+                        slow: false,
+                        host: 'https://translate.google.com',
+                    });
+                    const messageChain = [{ "type": "Voice", url }]
+                    conixBot.sendGroupMessage(sender, messageChain)
+                    console.log(`检测到命令，发送回应`)
+                    break
+                }
+                case text.slice(0, 4) == "#img": {
+                    const url = text.slice(5)
+                    const messageChain = [
+                        { "type":"Image", url }
+                    ]
+                    conixBot.sendGroupMessage(sender, messageChain)
+                    console.log(`检测到命令，发送回应`)
+                    break
+                }
+                case text.slice(0, 7) == "#upload" && m.sender.id == 1521900139 : { //只能我自己上传
+                    const fileUrl = text.split(" ")[1]
+                    const fileName = text.split(" ")[2]
+                    conixBot.uploadGroupFile(sender, fileUrl, fileName)
+                    console.log(`检测到命令，发送回应`)
+                    break
+                }
             }
         }
     }
