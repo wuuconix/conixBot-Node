@@ -4,6 +4,7 @@ conixBot Node.js 版本
 ## 目前实现的功能
 
 + **#hi** 打招呼
+
     ![https://pic.imgdb.cn/item/624b0028239250f7c5e8e4b4.jpg](https://pic.imgdb.cn/item/624b0028239250f7c5e8e4b4.jpg)
 
 + **#say** 利用Google TTS 把语音转化为 语音发送到qq群里。
