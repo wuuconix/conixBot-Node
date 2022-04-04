@@ -148,6 +148,34 @@ setInterval(async () => { //定时器需要设置为async函数
                     console.log(`检测到命令，发送回应`)
                     break
                 }
+                case text.slice(0, 9) == "#nslookup": {
+                    let target = text.slice(10)
+                    target = target.replace("https://", "")
+                    target = target.replace("http://", "")
+                    if (target.includes("/")) {
+                        target = target.slice(0, target.indexOf("/"))
+                    }
+                    const url = `http://ip-api.com/json/${target}?lang=zh-CN`
+                    let result = null
+                    await fetch(url)
+                        .then(res => res.json())
+                        .then(data => {
+                            result = data
+                        })
+                    console.log(result);
+                    let response = ""
+                    if (result.status == "fail") {
+                        response = `IP: ${result['query']}\n获取地址失败: ${result['message']}`
+                    } else {
+                        response = `IP: ${result['query']}\n国家: ${result['country']}\n城市: ${result['regionName']}${result['city']}\nISP: ${result['isp']}\n组织: ${result['org']}`
+                    }
+                    const messageChain = [
+                        { "type": "Plain", "text": response },
+                    ]
+                    conixBot.sendGroupMessage(sender, messageChain)
+                    console.log(`检测到命令，发送回应`)
+                    break
+                } 
             }
         }
     }
