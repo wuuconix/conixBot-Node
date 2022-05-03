@@ -18,3 +18,6 @@ conixBot Node.js 版本
 
 + **#nslookup** 利用 ip-api.com 解析 域名/ip/url 的物理地址
     ![#nslookup](assets/nslookup.jpg)
+
++ **#site** 利用 app.screenshotapi.net 实现的网站截图生成
+    ![#site](https://s2.loli.net/2022/05/04/qfQY2yVaGxOE8Wp.png)

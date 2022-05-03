@@ -175,7 +175,18 @@ setInterval(async () => { //定时器需要设置为async函数
                     conixBot.sendGroupMessage(sender, messageChain)
                     console.log(`检测到命令，发送回应`)
                     break
-                } 
+                }
+                case text.slice(0, 5) == "#site": {
+                    const site = encodeURIComponent(text.split(" ")[1]) //url-encode后的网址
+                    const url = `https://shot.screenshotapi.net/screenshot?token=HCDX662-SPA47Q3-PFHGR99-AVXSFDC&url=${site}&width=1920&height=1080&fresh=true&output=image&file_type=png&wait_for_event=load`
+                    console.log(url)
+                    const messageChain = [
+                        { "type":"Image", url }
+                    ]
+                    conixBot.sendGroupMessage(sender, messageChain)
+                    console.log(`检测到命令，发送回应`)
+                    break
+                }
             }
         }
     }
