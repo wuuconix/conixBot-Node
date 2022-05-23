@@ -22,7 +22,7 @@ conixBot Node.js 版本
 
 + **#say** 利用Google TTS 把语音转化为 语音发送到qq群里。
 
-    ![#say](https://tvax4.sinaimg.cn/large/007YVyKcly1h2iow9ehq6j30e303zdg4.jpg)
+    ![#say](https://tva2.sinaimg.cn/large/007YVyKcly1h2iq9jowdnj30hb037dg4.jpg)
 
     用法: `#say something`
 
@@ -46,7 +46,7 @@ conixBot Node.js 版本
 
 + **#site** 利用 www.screenshotapi.net 实现的网站截图生成
 
-    ![#site](https://tva2.sinaimg.cn/large/007YVyKcly1h2ip53pt58j30h80ct0wl.jpg)
+    ![#site](https://tva1.sinaimg.cn/large/007YVyKcly1h2iqauqc5bj30hb0cj42e.jpg)
 
     用法: `#site url [full]`
 
