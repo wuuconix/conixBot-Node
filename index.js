@@ -52,6 +52,31 @@ ws.on('message', (data) => {
             const url = `https://shot.screenshotapi.net/screenshot?token=${token}&url=${site}&width=1920&height=1080&fresh=true&output=image&file_type=png&wait_for_event=load${full}`
             console.log(url)
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url }] })
+        } else if (/^#music /.test(text)) {
+            const songId = text.split(" ")[1]
+            const url = `https://api.injahow.cn/meting/?type=song&id=${songId}`
+            fetch(url)
+                .then(res => res.json()).then(res => {
+                    console.log(res)
+                    if (res.error) {
+                        sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: res.error }] })
+                    } else {
+                        const name = res[0].name
+                        const artist = res[0].artist
+                        const url = res[0].url
+                        let pic = res[0].pic
+                        fetch(pic, { redirect: "manual" }).then(res => {
+                            pic = res.headers.get("location") //手动获得真实的url不然显示不出图片
+                            sendGroupMessage({ target: groupID, messageChain:[{
+                                type: 'MusicShare', kind: 'NeteaseCloudMusic',
+                                title: name, summary: artist,
+                                jumpUrl: url, pictureUrl: pic,
+                                musicUrl: url, brief: 'brief'}]
+                            })
+                        })
+       
+                    }
+                })
         }
     }
 })

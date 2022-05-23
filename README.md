@@ -53,3 +53,11 @@ conixBot Node.js 版本
     > 第一个参数为一个网站的url
     >
     > 可选第二个参数用来控制截图是否需要截到网站底部，即是否为full_page
+
++ **#music** 利用 api.injahow.cn/meting/ 实现的快速网易云音乐分享
+
+    ![#music](https://tvax1.sinaimg.cn/large/007YVyKcly1h2it3lrj4sj30ha05imxt.jpg)
+
+    用法: `#music id`
+
+    > id为网易云歌曲的id
