@@ -1,196 +1,66 @@
-import fetch from 'node-fetch'
+import WebSocket from 'ws';
 import * as googleTTS from 'google-tts-api'
-import { fileFromPath } from "formdata-node/file-from-path"
-import { FormData } from "formdata-node"
-import { createWriteStream } from 'fs';
-import { pipeline } from 'stream';
-import { promisify } from 'util'
+import fetch from 'node-fetch'
+import { baseURL, qq, verifyKey, screenshotToken } from './config/config.js'
 
-class Bot {
-    constructor () {
-        this.baseUrl = "http://127.0.0.1:8080"
-        this.qq = "1401840484"
-        this.verifyKey = "wuuconix_yyds"
-        this.sessionKey = "S8Ab6C1e"
-    }
+const ws = new WebSocket(`ws://${baseURL}/message?verifyKey=${verifyKey}&qq=${qq}`);
 
-    async verify() { //认证 返回一个session
-        let url = new URL(`${this.baseUrl}/verify`)
-        let data = { verifyKey: this.verifyKey }
-        let session = ""
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-            .then(res => res.json())
-            .then(data => { session = data.session})
-        return session
-    }
-
-    async bind(session) { //绑定 将session与qq绑定
-        let url = new URL(`${this.baseUrl}/bind`)
-        let data = { sessionKey: session, qq: this.qq }
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.msg == "success")
-                    this.sessionKey = session
-            })
-    }
-
-    async countMessage() {
-        let url = new URL(`${this.baseUrl}/countMessage?sessionKey=${this.sessionKey}`)
-        let count = 0
-        await fetch(url)
-            .then(res => res.json())
-            .then(data => { count = data.data; console.log(data) })
-        return count
-    }
-
-    async fetchMessage(count) { //拿到群消息和私法消息
-        let url = new URL(`${this.baseUrl}/fetchMessage?sessionKey=${this.sessionKey}&count=${count}`)
-        let messageChain = []
-        await fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                messageChain = data.data
-            })
-        return messageChain.filter(x => ["GroupMessage", "FriendMessage"].includes(x.type))
-    }
-
-    async sendGroupMessage(target, messageChain) {
-        let url = new URL(`${this.baseUrl}/sendGroupMessage`)
-        let data = { sessionKey: this.sessionKey,
-            target,
-            messageChain
-        }
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        })
-    }
-
-    async uploadGroupFile(target, fileUrl, fileName) {
-        let url = new URL(`${this.baseUrl}/file/upload`)
-        const form = new FormData()
-
-        const streamPipeline = promisify(pipeline);
-        const response = await fetch(fileUrl);
-        if (!response.ok) { //无法fetch对应文件
-            this.sendGroupMessage(target, { "type": "Plain", "text": `unexpected response ${response.statusText}`})
-            return
-        }
-        await streamPipeline(response.body, createWriteStream(`/root/conixBot-Node/temp/${fileName}`)) //将响应生成为文件
-        form.set("sessionKey", this.sessionKey)
-        form.set("type", "group")
-        form.set("target", target)
-        form.set("path", "")
-        form.set("file", await fileFromPath(`/root/conixBot-Node/temp/${fileName}`))
-        fetch(url, { method: 'POST', body: form}) //向上传群文件接口发送请求
-    }
-}
-
-let conixBot = new Bot()
-// let session = await conixBot.verify()
-// await conixBot.bind(session)
-// console.log(session)
-setInterval(async () => { //定时器需要设置为async函数
-    let count = await conixBot.countMessage()
-    if (count > 0) {
-        let messages = await conixBot.fetchMessage(count)
-        console.log(`接受到${messages.length}条消息`)
-        for (let m of messages) {
-            let sender = m.sender.group.id //群号
-            let messageChain = m.messageChain //分析群友的消息
-            let text = messageChain[1].type == "Plain" ? messageChain[1].text : ""
-            console.log(`text: ${text}`)
-            switch (true) {
-                case text.slice(0, 3) == "#hi": {
-                    const messageChain = [
-                        { "type": "Plain", "text": "Hello World" },
-                        { "type":"Image", "url":"https://conix.ml" }
-                    ]
-                    conixBot.sendGroupMessage(sender, messageChain)
-                    console.log(`检测到命令，发送回应`)
-                    break
-                }
-                case text.slice(0, 4) == "#say": {
-                    const content = text.slice(5)
-                    const url = googleTTS.getAudioUrl(content, {
-                        lang: 'zh',
-                        slow: false,
-                        host: 'https://translate.google.com',
-                    });
-                    const messageChain = [{ "type": "Voice", url }]
-                    conixBot.sendGroupMessage(sender, messageChain)
-                    console.log(`检测到命令，发送回应`)
-                    break
-                }
-                case text.slice(0, 4) == "#img": {
-                    const url = text.slice(5)
-                    const messageChain = [
-                        { "type":"Image", url }
-                    ]
-                    conixBot.sendGroupMessage(sender, messageChain)
-                    console.log(`检测到命令，发送回应`)
-                    break
-                }
-                case text.slice(0, 7) == "#upload" && m.sender.id == 1521900139 : { //只能我自己上传
-                    const fileUrl = text.split(" ")[1]
-                    const fileName = text.split(" ")[2]
-                    conixBot.uploadGroupFile(sender, fileUrl, fileName)
-                    console.log(`检测到命令，发送回应`)
-                    break
-                }
-                case text.slice(0, 9) == "#nslookup": {
-                    let target = text.slice(10)
-                    target = target.replace("https://", "")
-                    target = target.replace("http://", "")
-                    if (target.includes("/")) {
-                        target = target.slice(0, target.indexOf("/"))
-                    }
-                    const url = `http://ip-api.com/json/${target}?lang=zh-CN`
-                    let result = null
-                    await fetch(url)
-                        .then(res => res.json())
-                        .then(data => {
-                            result = data
-                        })
-                    console.log(result);
+ws.on('message', (data) => {
+    let msg = JSON.parse(data.toString())
+    // console.log(JSON.stringify(msg, null, 2))
+    if (msg.data && msg.data.type == "GroupMessage" && msg.data.messageChain.length == 2) {
+        let groupID = msg.data.sender.group.id //群号
+        // let senderID = msg.data.sender.id //发送者QQ号
+        let text = msg.data.messageChain[1].text //
+        console.log(msg.data.messageChain)
+        if (/^#hi$/.test(text)) {
+            sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
+        } else if (/^#repeat /.test(text)) {
+            const content = text.slice(8)
+            sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: content }] })
+        } else if (/^#img /.test(text)) {
+            const url = text.split(" ")[1]
+            sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url }] })
+        } else if (/^#say /.test(text)) {
+            const content = text.slice(5)
+            const url = googleTTS.getAudioUrl(content, { lang: 'zh', slow: false, host: 'https://translate.google.com' })
+            sendGroupMessage({ target: groupID, messageChain:[{ type:"Voice", url }] })
+        } else if (/^#nslookup /.test(text)) {
+            const target = text.split(" ")[1].replace("https://", "").replace("http://", "").split("/")[0]
+            const url = `http://ip-api.com/json/${target}?lang=zh-CN`
+            fetch(url)
+                .then(res => res.json())
+                .then(result => {
                     let response = ""
                     if (result.status == "fail") {
                         response = `IP: ${result['query']}\n获取地址失败: ${result['message']}`
                     } else {
                         response = `IP: ${result['query']}\n国家: ${result['country']}\n城市: ${result['regionName']}${result['city']}\nISP: ${result['isp']}\n组织: ${result['org']}`
                     }
-                    const messageChain = [
-                        { "type": "Plain", "text": response },
-                    ]
-                    conixBot.sendGroupMessage(sender, messageChain)
-                    console.log(`检测到命令，发送回应`)
-                    break
-                }
-                case text.slice(0, 5) == "#site": {
-                    const site = encodeURIComponent(text.split(" ")[1]) //url-encode后的网址
-                    const url = `https://shot.screenshotapi.net/screenshot?token=HCDX662-SPA47Q3-PFHGR99-AVXSFDC&url=${site}&width=1920&height=1080&fresh=true&output=image&file_type=png&wait_for_event=load`
-                    console.log(url)
-                    const messageChain = [
-                        { "type":"Image", url }
-                    ]
-                    conixBot.sendGroupMessage(sender, messageChain)
-                    console.log(`检测到命令，发送回应`)
-                    break
-                }
+                    sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text:response }] })
+                })
+        } else if (/^#site /.test(text)) {
+            const site = encodeURIComponent(text.split(" ")[1]) //url-encode后的网址
+            const full = text.split(" ")[2] == "full" ? "&full_page=true" : ""
+            let token
+            if (/conix/.test(site)) { //自己的网址使用自己的token
+                token = screenshotToken[0]
+            } else { //其他的用白嫖的token
+                token = screenshotToken[Math.floor(Math.random() * (screenshotToken.length - 1)) + 1] //从众多token中选择一个token
             }
+            console.log(`使用token: ${token}`)
+            const url = `https://shot.screenshotapi.net/screenshot?token=${token}&url=${site}&width=1920&height=1080&fresh=true&output=image&file_type=png&wait_for_event=load${full}`
+            console.log(url)
+            sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url }] })
         }
     }
-    else {
-        console.log(`无事发生`)
-    }
-}, 10000)
+})
+
+const sendGroupMessage = (content) => {
+    ws.send(JSON.stringify({
+        syncId: 114514,
+        command: "sendGroupMessage", // 命令字
+        subCommand: null,
+        content
+    }))
+}
