@@ -14,7 +14,7 @@ conixBot Node.js 版本
 
 + **#repeat** 没错，就是重复你说的话
 
-    ![#repeat](https://tva3.sinaimg.cn/large/007YVyKcly1h2ipk4avb8j30hh059gm5.jpg)
+    ![#repeat](https://tvax1.sinaimg.cn/large/007YVyKcly1h2iqhh8j7cj30hb04xt9b.jpg)
 
     用法: `#repeat something` 
 
