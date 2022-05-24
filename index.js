@@ -72,7 +72,7 @@ ws.on('message', (data) => {
                                 type: 'MusicShare', kind: 'NeteaseCloudMusic',
                                 title: name, summary: artist,
                                 jumpUrl: url, pictureUrl: pic,
-                                musicUrl: url, brief: 'brief'}]
+                                musicUrl: url, brief: `武丑兄分享的${name}`}]
                             })
                         })
        
