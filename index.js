@@ -8,7 +8,7 @@ const ws = new WebSocket(`ws://${baseURL}/message?verifyKey=${verifyKey}&qq=${qq
 ws.on('message', (data) => {
     let msg = JSON.parse(data.toString())
     // console.log(JSON.stringify(msg, null, 2))
-    if (msg.data && msg.data.type == "GroupMessage" && msg.data.messageChain.length == 2) {
+    if (msg.data && msg.data.type == "GroupMessage") {
         let groupID = msg.data.sender.group.id //群号
         // let senderID = msg.data.sender.id //发送者QQ号
         let text = msg.data.messageChain[1].text //
@@ -17,7 +17,8 @@ ws.on('message', (data) => {
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
         } else if (/^#repeat /.test(text)) {
             const content = text.slice(8)
-            sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: content }] })
+            const otherMsgChain = msg.data.messageChain.slice(2)
+            sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: content }, ...otherMsgChain] })
         } else if (/^#img /.test(text)) {
             const url = text.split(" ")[1]
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url }] })
