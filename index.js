@@ -1,7 +1,7 @@
 import WebSocket from 'ws';
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, b23Cookie } from './config/config.js'
 
 const ws = new WebSocket(`ws://${baseURL}/message?verifyKey=${verifyKey}&qq=${qq}`);
 
@@ -72,11 +72,35 @@ ws.on('message', (data) => {
                                 type: 'MusicShare', kind: 'NeteaseCloudMusic',
                                 title: name, summary: artist,
                                 jumpUrl: url, pictureUrl: pic,
-                                musicUrl: url, brief: `武丑兄分享的${name}`}]
+                                musicUrl: url, brief: `${name}`}]
                             })
                         })
        
                     }
+                })
+        } else if (/^#b23 /.test(text)) {
+            const bvid = text.split(" ")[1]
+            const url = `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
+            console.log(url)
+            fetch(url)
+                .then(res => res.json()).then(res => {
+                    console.log(res)
+                    if (res.code == 0) { //正常
+                        const pic = res.data.pic
+                        const title = res.data.title
+                        const up = res.data.owner.name
+                        sendGroupMessage({ target: groupID, messageChain:[{
+                            type: 'MusicShare', kind: 'NeteaseCloudMusic',
+                            title, summary: up,
+                            jumpUrl: `https://www.bilibili.com/video/${bvid}`, pictureUrl: pic,
+                            musicUrl: "https://api.injahow.cn/meting/?server=netease&type=url&id=591321", brief: `${title}`}]
+                        })
+                    } else {
+                        sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "BV号错误" }] })
+                    }
+                })
+                .catch(e => {
+                    sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: e }] })
                 })
         }
     }
