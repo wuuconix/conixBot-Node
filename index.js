@@ -29,17 +29,15 @@ ws.on('message', (data) => {
         } else if (/^#nslookup /.test(text)) {
             const target = text.split(" ")[1].replace("https://", "").replace("http://", "").split("/")[0]
             const url = `http://ip-api.com/json/${target}?lang=zh-CN`
-            fetch(url)
-                .then(res => res.json())
-                .then(result => {
-                    let response = ""
-                    if (result.status == "fail") {
-                        response = `IP: ${result['query']}\n获取地址失败: ${result['message']}`
-                    } else {
-                        response = `IP: ${result['query']}\n国家: ${result['country']}\n城市: ${result['regionName']}${result['city']}\nISP: ${result['isp']}\n组织: ${result['org']}`
-                    }
-                    sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text:response }] })
-                })
+            fetch(url).then(res => res.json()).then(result => {
+                let response = ""
+                if (result.status == "fail") {
+                    response = `IP: ${result['query']}\n获取地址失败: ${result['message']}`
+                } else {
+                    response = `IP: ${result['query']}\n国家: ${result['country']}\n城市: ${result['regionName']}${result['city']}\nISP: ${result['isp']}\n组织: ${result['org']}`
+                }
+                sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text:response }] })
+            })
         } else if (/^#site /.test(text)) {
             const site = encodeURIComponent(text.split(" ")[1]) //url-encode后的网址
             const full = text.split(" ")[2] == "full" ? "&full_page=true" : ""
@@ -56,52 +54,44 @@ ws.on('message', (data) => {
         } else if (/^#music /.test(text)) {
             const songId = text.split(" ")[1]
             const url = `https://api.injahow.cn/meting/?type=song&id=${songId}`
-            fetch(url)
-                .then(res => res.json()).then(res => {
-                    console.log(res)
-                    if (res.error) {
-                        sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: res.error }] })
-                    } else {
-                        const name = res[0].name
-                        const artist = res[0].artist
-                        const url = res[0].url
-                        let pic = res[0].pic
-                        fetch(pic, { redirect: "manual" }).then(res => {
-                            pic = res.headers.get("location") //手动获得真实的url不然显示不出图片
-                            sendGroupMessage({ target: groupID, messageChain:[{
-                                type: 'MusicShare', kind: 'NeteaseCloudMusic',
-                                title: name, summary: artist,
-                                jumpUrl: url, pictureUrl: pic,
-                                musicUrl: url, brief: `${name}`}]
-                            })
+            fetch(url).then(res => res.json()).then(res => {
+                console.log(res)
+                if (res.error) {
+                    sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: res.error }] })
+                } else {
+                    let [{name, artist, url, pic}] = res
+                    fetch(pic, { redirect: "manual" }).then(res => {
+                        pic = res.headers.get("location") //手动获得真实的url不然显示不出图片
+                        sendGroupMessage({ target: groupID, messageChain:[{
+                            type: 'MusicShare', kind: 'NeteaseCloudMusic',
+                            title: name, summary: artist,
+                            jumpUrl: url, pictureUrl: pic,
+                            musicUrl: url, brief: `${name}`}]
                         })
-       
-                    }
-                })
+                    })
+    
+                }
+            })
         } else if (/^#b23 /.test(text)) {
             const bvid = text.split(" ")[1]
             const url = `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
             console.log(url)
-            fetch(url)
-                .then(res => res.json()).then(res => {
-                    console.log(res)
-                    if (res.code == 0) { //正常
-                        const pic = res.data.pic
-                        const title = res.data.title
-                        const up = res.data.owner.name
-                        sendGroupMessage({ target: groupID, messageChain:[{
-                            type: 'MusicShare', kind: 'NeteaseCloudMusic',
-                            title, summary: up,
-                            jumpUrl: `https://www.bilibili.com/video/${bvid}`, pictureUrl: pic,
-                            musicUrl: "https://api.injahow.cn/meting/?server=netease&type=url&id=591321", brief: `${title}`}]
-                        })
-                    } else {
-                        sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "BV号错误" }] })
-                    }
-                })
-                .catch(e => {
-                    sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: e }] })
-                })
+            fetch(url).then(res => res.json()).then(res => {
+                console.log(res)
+                if (res.code == 0) { //正常
+                    const {pic, title, owner: {name: up}} = res.data
+                    sendGroupMessage({ target: groupID, messageChain:[{
+                        type: 'MusicShare', kind: 'NeteaseCloudMusic',
+                        title, summary: up,
+                        jumpUrl: `https://www.bilibili.com/video/${bvid}`, pictureUrl: pic,
+                        musicUrl: "https://api.injahow.cn/meting/?server=netease&type=url&id=591321", brief: `${title}`}]
+                    })
+                } else {
+                    sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "BV号错误" }] })
+                }
+            }).catch(e => {
+                sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: e }] })
+            })
         }
     }
 })
