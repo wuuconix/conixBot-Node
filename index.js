@@ -1,7 +1,7 @@
-import WebSocket from 'ws';
+import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, b23Cookie } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken } from './config/config.js'
 
 const ws = new WebSocket(`ws://${baseURL}/message?verifyKey=${verifyKey}&qq=${qq}`);
 
