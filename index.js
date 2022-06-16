@@ -4,14 +4,13 @@ import fetch from 'node-fetch'
 import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu } from './config/config.js'
 import { scheduleJob } from 'node-schedule'
 
-const ws = new WebSocket(`ws://${baseURL}/message?verifyKey=${verifyKey}&qq=${qq}`);
+const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 
 ws.on('message', (data) => {
     let msg = JSON.parse(data.toString())
-    // console.log(JSON.stringify(msg, null, 2))
+    console.log(msg)
     if (msg.data && msg.data.type == "GroupMessage") {
         let groupID = msg.data.sender.group.id //群号
-        // let senderID = msg.data.sender.id //发送者QQ号
         let text = msg.data.messageChain[1].text //
         console.log(msg.data.messageChain)
         if (/^#hi$/.test(text)) {
@@ -56,7 +55,6 @@ ws.on('message', (data) => {
             const songId = text.split(" ")[1]
             const url = `https://api.injahow.cn/meting/?type=song&id=${songId}`
             fetch(url).then(res => res.json()).then(res => {
-                console.log(res)
                 if (res.error) {
                     sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: res.error }] })
                 } else {
@@ -78,7 +76,6 @@ ws.on('message', (data) => {
             const url = `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
             console.log(url)
             fetch(url).then(res => res.json()).then(res => {
-                console.log(res)
                 if (res.code == 0) { //正常
                     const {pic, title, owner: {name: up}} = res.data
                     sendGroupMessage({ target: groupID, messageChain:[{
@@ -94,6 +91,9 @@ ws.on('message', (data) => {
                 sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: e }] })
             })
         }
+    } else if (msg.data && msg.data.type == "MemberCardChangeEvent") {
+        const { origin, current, member: {id: memberId, group: {id: groupId}} } = msg.data
+        sendGroupMessage({ target: groupId, messageChain:[{ type: "At", target: memberId }, { type:"Plain", text: `\n检测到昵称变化\n${origin} -->  ${current}` }] })
     }
 })
 
