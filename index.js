@@ -1,7 +1,8 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu } from './config/config.js'
+import { scheduleJob } from 'node-schedule'
 
 const ws = new WebSocket(`ws://${baseURL}/message?verifyKey=${verifyKey}&qq=${qq}`);
 
@@ -104,3 +105,14 @@ const sendGroupMessage = (content) => {
         content
     }))
 }
+
+//每天定时任务
+scheduleJob('0 8 * * *', () => {
+    sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: "起床啦兄弟们，来张涩图清醒清醒"}, { type: "Image", url: setu }] })
+    console.log("bingo 每日起床铃发送成功")
+})
+
+scheduleJob('0 17 * * *', () => {
+    sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备做核酸啦\n${acid} 填写问卷`}] })
+    console.log("bingo 每日核酸发送成功")
+})
