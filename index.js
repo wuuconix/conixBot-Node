@@ -9,9 +9,9 @@ const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 ws.on('message', (data) => {
     let msg = JSON.parse(data.toString())
     console.log(msg)
-    if (msg.data && msg.data.type == "GroupMessage") {
+    if (msg.data && msg.data.type == "GroupMessage" && msg.data.messageChain.length >= 2) {
         let groupID = msg.data.sender.group.id //群号
-        let text = msg.data.messageChain[1].text //
+        let text = msg.data.messageChain[1].text //查看消息链的第一个消息的文本
         console.log(msg.data.messageChain)
         if (/^#hi$/.test(text)) {
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
