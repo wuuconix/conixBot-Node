@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu, smileURI } from './config/config.js'
 import { scheduleJob } from 'node-schedule'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
@@ -24,8 +24,12 @@ ws.on('message', (data) => {
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url }] })
         } else if (/^#say /.test(text)) {
             const content = text.slice(5)
-            const url = googleTTS.getAudioUrl(content, { lang: 'zh', slow: false, host: 'https://translate.google.com' })
-            sendGroupMessage({ target: groupID, messageChain:[{ type:"Voice", url }] })
+            if (content == "笑") {
+                sendGroupMessage({ target: groupID, messageChain:[{ type:"Voice", url: smileURI }] })
+            } else {
+                const url = googleTTS.getAudioUrl(content, { lang: 'zh', slow: false, host: 'https://translate.google.com' })
+                sendGroupMessage({ target: groupID, messageChain:[{ type:"Voice", url }] })
+            }
         } else if (/^#nslookup /.test(text)) {
             const target = text.split(" ")[1].replace("https://", "").replace("http://", "").split("/")[0]
             const url = `http://ip-api.com/json/${target}?lang=zh-CN`
