@@ -20,8 +20,10 @@ ws.on('message', (data) => {
             const otherMsgChain = msg.data.messageChain.slice(2)
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: content }, ...otherMsgChain] })
         } else if (/^#img /.test(text)) {
-            const url = text.split(" ")[1]
-            sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url }] })
+            const urls = text.split(" ")
+            for (let i = 1; i < urls.length; i++) {
+                sendGroupMessage({ target: groupID, messageChain:[{ type:"Image", url: urls[i] }] })
+            }
         } else if (/^#say /.test(text)) {
             const content = text.slice(5)
             if (content == "笑") {
