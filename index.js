@@ -1,10 +1,11 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu, smileURI, banImgURI } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu, smileURI, banImgURI, setuAPI, testGroup } from './config/config.js'
 import { scheduleJob } from 'node-schedule'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
+let lastGroup = testGroup
 
 ws.on('message', (data) => {
     let msg = JSON.parse(data.toString())
@@ -18,16 +19,17 @@ ws.on('message', (data) => {
         }
     } else if (msg.syncId == '114514') { //syncId 114514 机器人发送的消息
         if (msg.data.code != 0) {
-            sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: msg.data.msg }] })
+            sendGroupMessage({ target: lastGroup, messageChain:[{ type:"Plain", text: msg.data.msg }] })
         } else if (msg.data.messageId == -1) { //messageId 可能表示被腾讯服务器屏蔽了
-            sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: banImgURI }] })
+            sendGroupMessage({ target: lastGroup, messageChain:[{ type: "Image", url: banImgURI }] })
         }
     }
 })
 
 /* 处理群消息 */
-const handleGroupMessage = (msg) => {
+const handleGroupMessage = async (msg) => {
     let groupID = msg.data.sender.group.id //群号
+    lastGroup = groupID
     let text = msg.data.messageChain[1].text //查看消息链的第一个消息的文本
     console.log(msg.data.messageChain)
     if (/^#hi$/.test(text)) {
@@ -113,6 +115,16 @@ const handleGroupMessage = (msg) => {
         }).catch(e => {
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: e }] })
         })
+    } else if (/^#setu/.test(text)) {
+        const search = text.split(" ")[1] ?? ""
+        const apiURI = new URL(setuAPI)
+        apiURI.search = new URLSearchParams(search).toString()
+        console.log(apiURI)
+        let res = await fetch(apiURI)
+        res = await res.json()
+        for (const {urls: { original: url}} of res.data) {
+            sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url }] })
+        }
     }
 }
 
