@@ -5,7 +5,6 @@ import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, setu, smileURI
 import { scheduleJob } from 'node-schedule'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
-let lastGroup = testGroup
 
 ws.on('message', (data) => {
     let msg = JSON.parse(data.toString())
@@ -29,7 +28,6 @@ ws.on('message', (data) => {
 /* 处理群消息 */
 const handleGroupMessage = async (msg) => {
     let groupID = msg.data.sender.group.id //群号
-    lastGroup = groupID
     let text = msg.data.messageChain[1].text //查看消息链的第一个消息的文本
     console.log(msg.data.messageChain)
     if (/^#hi$/.test(text)) {
@@ -120,10 +118,14 @@ const handleGroupMessage = async (msg) => {
         const apiURI = new URL(setuAPI)
         apiURI.search = new URLSearchParams(search).toString()
         console.log(apiURI)
-        let res = await fetch(apiURI)
-        res = await res.json()
-        for (const {urls: { original: url}} of res.data) {
-            sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url }] })
+        try {
+            let res = await fetch(apiURI)
+            res = await res.json()
+            for (const {urls: { original: url}} of res.data) {
+                sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url }] })
+            }
+        } catch(e) {
+            sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: e }] })
         }
     }
 }
