@@ -19,9 +19,9 @@ ws.on('message', (data) => {
         }
     } else if (msg.syncId == '114514') { //syncId 114514 机器人发送的消息
         if (msg.data.code != 0) {
-            sendGroupMessage({ target: lastGroup, messageChain:[{ type:"Plain", text: msg.data.msg }] })
+            sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: msg.data.msg }] })
         } else if (msg.data.messageId == -1) { //messageId 可能表示被腾讯服务器屏蔽了
-            sendGroupMessage({ target: lastGroup, messageChain:[{ type: "Image", url: banImgURI }] })
+            sendGroupMessage({ target: testGroup, messageChain:[{ type: "Plain", text: "被腾讯ban了" }] })
         }
     }
 })
