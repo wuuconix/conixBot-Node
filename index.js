@@ -150,10 +150,23 @@ scheduleJob('0 17 * * *', () => {
     const day = new Date().getDate()
     if (day % 2 == 0) { //偶数天做核算
         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备做核酸啦\n${acid} 填写问卷`}] })
-        console.log("bingo 每日核酸发送成功")
+        console.log("bingo 做核酸发送成功")
     } else {
         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，今天没有核酸!`}] })
         sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: setu }] })
-        console.log("bingo 没有核酸发送成功")
+        console.log("bingo 不做核酸发送成功")
+    }
+})
+
+scheduleJob('0 20 * * *', () => {
+    const day = new Date().getDate()
+    if (day % 2 == 1) { //奇数天去洗澡
+        sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备洗澡啦`}] })
+        sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: setu }] })
+        console.log("bingo 洗澡发送成功")
+    } else {
+        sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，今天不用洗澡!`}] })
+        sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: setu }] })
+        console.log("bingo 不洗澡发送成功")
     }
 })
