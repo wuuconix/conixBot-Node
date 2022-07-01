@@ -155,6 +155,7 @@ scheduleJob('0 8 * * *', async () => {
 })
 
 scheduleJob('0 17 * * *', async () => {
+    const day = new Date().getDate()
     if (day % 2 == 0) { //偶数天做核算
         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备做核酸啦\n${acid} 填写问卷`}] })
         console.log("bingo 做核酸发送成功")
