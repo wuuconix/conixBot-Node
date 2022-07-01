@@ -127,7 +127,14 @@ const handleGroupMessage = async (msg) => {
         // } catch(e) {
         //     sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: e }] })
         // }
-        sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+        const num = Number(new URLSearchParams(text.split(" ")[1] ?? "").get("num") ?? 1)
+        try {
+            for (let i = 0; i < num; i++) {
+                sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+            }
+        } catch(e) {
+            sendGroupMessage({ target: testGroup, messageChain:[{ type: "Plain", text: e }] })
+        }
     }
 }
 
@@ -140,18 +147,25 @@ const sendGroupMessage = (content) => {
     }))
 }
 
-//每天定时任务
+const log = (e) => { //发生异常是的日志
+    sendGroupMessage({ target: testGroup, messageChain:[{ type: "Plain", text: e }] })
+}
 
+//每天定时任务
 scheduleJob('0 8 * * *', async () => {
     const year = new Date().getFullYear()
     const month = new Date().getMonth() + 1
     const day = new Date().getDate()
     const weeks = new Array("星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六")
     const week = weeks[new Date().getDay()]
-    const sentence = `今天是 ${year}年${month}月${day}日 ${week}\n\n${(await (await fetch("https://v1.hitokoto.cn/")).json()).hitokoto}\n\n准备起床啦兄弟们`
-    sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: sentence}] })
-    sendGroupMessage({ target: testGroup, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-    console.log("bingo 每日起床铃发送成功")
+    try {
+        const sentence = `今天是 ${year}年${month}月${day}日 ${week}\n\n${(await (await fetch("https://v1.hitokoto.cn/")).json()).hitokoto}\n\n准备起床啦兄弟们`
+        sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: sentence}] })
+        sendGroupMessage({ target: testGroup, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+        console.log("bingo 每日起床铃发送成功")
+    } catch(e) {
+        log(e)
+    }
 })
 
 scheduleJob('0 17 * * *', async () => {
@@ -161,8 +175,12 @@ scheduleJob('0 17 * * *', async () => {
         console.log("bingo 做核酸发送成功")
     } else {
         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，今天没有核酸!`}] })
-        sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-        console.log("bingo 不做核酸发送成功")
+        try {
+            sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+            console.log("bingo 不做核酸发送成功")
+        } catch(e) {
+            log(e)
+        }
     }
 })
 
@@ -170,11 +188,19 @@ scheduleJob('0 20 * * *', async () => {
     const day = new Date().getDate()
     if (day % 2 == 1) { //奇数天去洗澡
         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备洗澡啦`}] })
-        sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-        console.log("bingo 洗澡发送成功")
+        try {
+            sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+            console.log("bingo 洗澡发送成功")
+        } catch(e) {
+            log(e)
+        }
     } else {
         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，今天不用洗澡!`}] })
-        sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-        console.log("bingo 不洗澡发送成功")
+        try {
+            sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+            console.log("bingo 不洗澡发送成功")
+        } catch(e) {
+            log(e)
+        }
     }
 })
