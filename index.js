@@ -160,8 +160,8 @@ scheduleJob('0 8 * * *', async () => {
     const week = weeks[new Date().getDay()]
     try {
         const sentence = `今天是 ${year}年${month}月${day}日 ${week}\n\n${(await (await fetch("https://v1.hitokoto.cn/")).json()).hitokoto}\n\n准备起床啦兄弟们`
-        sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: sentence}] })
-        sendGroupMessage({ target: testGroup, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
+        sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: sentence}] })
+        sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
         console.log("bingo 每日起床铃发送成功")
     } catch(e) {
         log(e)
