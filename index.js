@@ -182,7 +182,13 @@ scheduleJob('0 8 * * *', async () => {
 })
 
 async function ai(url, groupID) {
-  let res = await fetch(url)
+  let res
+  try {
+    res = await fetch(url)
+  } catch(e) {
+    log(e)
+    return
+  }
   const buffer = await res.arrayBuffer()
   const base64 = Buffer.from(buffer).toString("base64")
   const payload = { busiId: "ai_painting_anime_img_entry", images: [base64] }
