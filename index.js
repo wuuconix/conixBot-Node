@@ -25,10 +25,13 @@ ws.on('message', (data) => {
     }
 })
 
+const aiMap = new Map()
+
 /* 处理群消息 */
 const handleGroupMessage = async (msg) => {
-    let groupID = msg.data.sender.group.id //群号
-    let text = msg.data.messageChain[1].text //查看消息链的第一个消息的文本
+    const groupID = msg.data.sender.group.id //群号
+    const text = msg.data.messageChain[1].text //查看消息链的第一个消息的文本
+    const senderId = msg.data.sender.id //发送者qq号
     console.log(msg.data.messageChain)
     if (/^#hi$/.test(text)) {
         sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
@@ -123,30 +126,27 @@ const handleGroupMessage = async (msg) => {
             sendGroupMessage({ target: testGroup, messageChain:[{ type: "Plain", text: e }] })
         }
     } else if (/^#ai/.test(text)) {
-      const url = (msg.data.messageChain[2] && msg.data.messageChain[2].url)
-      console.log(url)
-      if (url) {
-        let res = await fetch(url)
-        const buffer = await res.arrayBuffer()
-        const base64 = Buffer.from(buffer).toString("base64")
-        const payload = { busiId: "ai_painting_anime_img_entry", images: [base64] }
-        console.log(payload)
-        res = await fetch(qqAI, {
-          method: "post",
-          body: JSON.stringify(payload),
-          headers: { "Content-Type": "application/json" }
-        })
-        let data = await res.text()
-        console.log(data)
-        const reg = /https:\/\/activity.tu.qq.com\/mqq\/ai_painting_anime\/share\/[\s\S]{36}.jpg/
-        const match = data.match(reg)
-        const result = match && match[0]
-        if (result && result.startsWith("https")) {
-          console.log(result)
-          sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url: result }] })
-        } else {
-          log(`result: ${result}`)
-        }
+      const url1 = text.split(" ")[1]
+      const url2 = msg.data.messageChain[2] && msg.data.messageChain[2].url
+      if (url1) {
+        console.log(url1)
+        ai(url1, groupID)
+      } else if (url2) {
+        console.log(url2)
+        ai(url2, groupID)
+      } else {
+        const key = `${groupID}-${senderId}`
+        aiMap.set(key, (aiMap.get(key) ?? 0) + 1)
+        console.log(`aiMap ${key} 增加`)
+      }
+    }
+    if (msg.data.messageChain[1].type == "Image") {
+      const key = `${groupID}-${senderId}`
+      if (aiMap.has(key) && aiMap.get(key) > 0) {
+        const url = msg.data.messageChain[1].url
+        ai(url, groupID)
+        aiMap.set(key, aiMap.get(key) - 1)
+        console.log(`aiMap ${key} 减少`)
       }
     }
 }
@@ -180,3 +180,27 @@ scheduleJob('0 8 * * *', async () => {
         log(e)
     }
 })
+
+async function ai(url, groupID) {
+  let res = await fetch(url)
+  const buffer = await res.arrayBuffer()
+  const base64 = Buffer.from(buffer).toString("base64")
+  const payload = { busiId: "ai_painting_anime_img_entry", images: [base64] }
+  console.log(payload)
+  res = await fetch(qqAI, {
+    method: "post",
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" }
+  })
+  let data = await res.text()
+  console.log(data)
+  const reg = /https:\/\/activity.tu.qq.com\/mqq\/ai_painting_anime\/share\/[\s\S]{36}.jpg/
+  const match = data.match(reg)
+  const result = match && match[0]
+  if (result && result.startsWith("https")) {
+    console.log(result)
+    sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url: result }] })
+  } else {
+    log(`result: ${result}`)
+  }
+}
