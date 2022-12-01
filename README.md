@@ -69,3 +69,19 @@ conixBot Node.js 版本
     用法: `#b23 bvid`
 
     > bvid为哔哩哔哩视频的的bv号
+
++ **#ai** 利用腾讯 "异次元的我" 实现图片AI绘制
+
+    <img src="https://tva2.sinaimg.cn/large/007YVyKcly1h8ojeaxdhaj30u00z4af3.jpg" alt="用法1" width="45%">
+
+    <img src="https://tva1.sinaimg.cn/large/007YVyKcly1h8ojjuq1owj30u017vtez.jpg" alt="用法3" width="45%">
+
+    ![用法2](https://tva4.sinaimg.cn/large/007YVyKcly1h8ojeo22hzj30n40aijv4.jpg)
+
+
+    用法1: `#ai <image>`
+    用法2:
+    + 发送`#ai`
+    + 发送一张图片
+
+    用法3: `#ai <image-url>`
