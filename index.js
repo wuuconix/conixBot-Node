@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, xiongyue, acid, smileURI, testGroup, acgAPI } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, xiongyue, smileURI, testGroup, acgAPI, qqAI } from './config/config.js'
 import { scheduleJob } from 'node-schedule'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
@@ -114,19 +114,6 @@ const handleGroupMessage = async (msg) => {
             sendGroupMessage({ target: groupID, messageChain:[{ type:"Plain", text: e }] })
         })
     } else if (/^#setu/.test(text)) {
-        // const search = text.split(" ")[1] ?? ""
-        // const apiURI = new URL(setuAPI)
-        // apiURI.search = new URLSearchParams(search).toString()
-        // console.log(apiURI)
-        // try {
-        //     let res = await fetch(apiURI)
-        //     res = await res.json()
-        //     for (const {urls: { original: url}} of res.data) {
-        //         sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url }] })
-        //     }
-        // } catch(e) {
-        //     sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: e }] })
-        // }
         const num = Number(new URLSearchParams(text.split(" ")[1] ?? "").get("num") ?? 1)
         try {
             for (let i = 0; i < num; i++) {
@@ -135,6 +122,32 @@ const handleGroupMessage = async (msg) => {
         } catch(e) {
             sendGroupMessage({ target: testGroup, messageChain:[{ type: "Plain", text: e }] })
         }
+    } else if (/^#ai/.test(text)) {
+      const url = (msg.data.messageChain[2] && msg.data.messageChain[2].url)
+      console.log(url)
+      if (url) {
+        let res = await fetch(url)
+        const buffer = await res.arrayBuffer()
+        const base64 = Buffer.from(buffer).toString("base64")
+        const payload = { busiId: "ai_painting_anime_img_entry", images: [base64] }
+        console.log(payload)
+        res = await fetch(qqAI, {
+          method: "post",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "application/json" }
+        })
+        let data = await res.text()
+        console.log(data)
+        const reg = /https:\/\/activity.tu.qq.com\/mqq\/ai_painting_anime\/share\/[\s\S]{36}.jpg/
+        const match = data.match(reg)
+        const result = match && match[0]
+        if (result && result.startsWith("https")) {
+          console.log(result)
+          sendGroupMessage({ target: groupID, messageChain:[{ type: "Image", url: result }] })
+        } else {
+          log(`result: ${result}`)
+        }
+      }
     }
 }
 
@@ -167,40 +180,3 @@ scheduleJob('0 8 * * *', async () => {
         log(e)
     }
 })
-
-// scheduleJob('0 17 * * *', async () => {
-//     const day = new Date().getDate()
-//     if (day % 2 == 0) { //偶数天做核算
-//         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备做核酸啦\n${acid} 填写问卷`}] })
-//         console.log("bingo 做核酸发送成功")
-//     } else {
-//         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，今天没有核酸!`}] })
-//         try {
-//             sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-//             console.log("bingo 不做核酸发送成功")
-//         } catch(e) {
-//             log(e)
-//         }
-//     }
-// })
-
-// scheduleJob('0 20 * * *', async () => {
-//     const day = new Date().getDate()
-//     if (day % 2 == 1) { //奇数天去洗澡
-//         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，准备洗澡啦`}] })
-//         try {
-//             sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-//             console.log("bingo 洗澡发送成功")
-//         } catch(e) {
-//             log(e)
-//         }
-//     } else {
-//         sendGroupMessage({ target: xiongyue, messageChain:[{ type:"Plain", text: `兄弟们，今天不用洗澡!`}] })
-//         try {
-//             sendGroupMessage({ target: xiongyue, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-//             console.log("bingo 不洗澡发送成功")
-//         } catch(e) {
-//             log(e)
-//         }
-//     }
-// })
