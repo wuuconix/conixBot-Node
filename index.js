@@ -26,18 +26,20 @@ function handleMessage(data) {
 }
 
 const aiMap = new Map()
+const qrCodeMap = new Map()
 
 /* 处理群消息 */
 async function handleGroupMessage(msg) {
   const groupId = msg.data.sender.group.id //群号
-  const text = msg.data.messageChain[1].text //查看消息链的第一个消息的文本
   const senderId = msg.data.sender.id //发送者qq号
-  console.log(msg.data.messageChain)
+  const messageChain = msg.data.messageChain
+  const text = messageChain[1].text //查看消息链的第一个消息的文本
+  test(msg)
   if (/^#hi$/.test(text)) {
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
   } else if (/^#repeat /.test(text)) {
     const content = text.slice(8)
-    const otherMsgChain = msg.data.messageChain.slice(2)
+    const otherMsgChain = messageChain.slice(2)
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: content }, ...otherMsgChain] })
   } else if (/^#img /.test(text)) {
     const urls = text.split(" ")
@@ -111,7 +113,7 @@ async function handleGroupMessage(msg) {
     }
   } else if (/^#ai/.test(text)) {
     const url1 = text.split(" ")[1]
-    const url2 = msg.data.messageChain[2] && msg.data.messageChain[2].url
+    const url2 = messageChain[2] && messageChain[2].url
     if (url1) {
       console.log(url1)
       ai(url1, groupId, senderId)
@@ -123,14 +125,29 @@ async function handleGroupMessage(msg) {
       aiMap.set(key, (aiMap.get(key) ?? 0) + 1)
       console.log(`aiMap ${key} 增加`)
     }
+  } else if (/^#qrcode/.test(text)) {
+    const url = messageChain[2] && messageChain[2].url
+    if (url) {
+      qrCode(url, groupId, senderId)
+    } else {
+      const key = `${groupId}-${senderId}`
+      qrCodeMap.set(key, (qrCodeMap.get(key) ?? 0) + 1)
+      console.log(`qrCodeMap ${key} 增加`)
+    }
   }
-  if (msg.data.messageChain[1].type == "Image") {
+  if (messageChain[1].type == "Image") {
     const key = `${groupId}-${senderId}`
     if (aiMap.has(key) && aiMap.get(key) > 0) {
-      const url = msg.data.messageChain[1].url
+      const url = messageChain[1].url
       ai(url, groupId, senderId)
       aiMap.set(key, aiMap.get(key) - 1)
       console.log(`aiMap ${key} 减少`)
+    }
+    if (qrCodeMap.has(key) && qrCodeMap.get(key) > 0) {
+      const url = messageChain[1].url
+      qrCode(url, groupId, senderId)
+      qrCodeMap.set(key, qrCodeMap.get(key) - 1)
+      console.log(`qrCodeMap ${key} 减少`)
     }
   }
 }
@@ -178,4 +195,27 @@ async function ai(url, groupId, senderId) {
   } else {
     log(`data: ${res}`, groupId, senderId)
   }
+}
+
+async function qrCode(url, groupId, senderId) {
+  const res = await (await fetch("https://sotool.net/qrcode-scanner", {
+    method: "post",
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Sec-Ch-Ua-Mobile": "?0"
+    },
+    body: `path=${encodeURIComponent(url)}`
+  })).json()
+  console.log(res)
+  if (res.code == 200) {
+    log(`二维码扫描结果: ${res.result.data}`, groupId)
+  } else {
+    log(JSON.stringify(res), groupId, senderId)
+  }
+}
+
+function test(msg) {
+  const messageChain = msg.data.messageChain
+  console.log(messageChain)
 }
