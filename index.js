@@ -1,7 +1,8 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, qqAI } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, qqAI, chatSessionToken } from './config/config.js'
+import { ChatGPTAPI } from 'chatgpt'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 ws.on('message', handleMessage)
@@ -33,8 +34,14 @@ async function handleGroupMessage(msg) {
   const groupId = msg.data.sender.group.id //群号
   const senderId = msg.data.sender.id //发送者qq号
   const messageChain = msg.data.messageChain
-  const text = messageChain[1].text //查看消息链的第一个消息的文本
+  const chatMode = messageChain[1].type == "At" && messageChain[1].target == qq && messageChain[2] && messageChain[2].type == "Plain"
+  let text = chatMode ? messageChain[2].text.trim() : messageChain[1].text //查看消息链的第一个消息的文本
   test(msg)
+  if (chatMode) {
+    const response = await chatGPT(text)
+    log(response, groupId, senderId)
+    return
+  }
   if (/^#hi$/.test(text)) {
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
   } else if (/^#repeat /.test(text)) {
@@ -213,6 +220,21 @@ async function qrCode(url, groupId, senderId) {
   } else {
     log(JSON.stringify(res), groupId, senderId)
   }
+}
+
+async function chatGPT(question) {
+  console.log(`chatGPT问题: ${question}`)
+  const api = new ChatGPTAPI({ sessionToken: chatSessionToken })
+  let response
+  try {
+    await api.ensureAuth()
+    response = await api.sendMessage(question)
+  } catch(e) {
+    log(e, testGroup)
+  }
+  console.log(`chatGPT回答: ${response}`)
+  response = response.replace(/我是 Assistant/g, "我是 conixBot")
+  return response
 }
 
 function test(msg) {
