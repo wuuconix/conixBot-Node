@@ -229,11 +229,11 @@ async function chatGPT(question) {
   try {
     await api.ensureAuth()
     response = await api.sendMessage(question)
+    console.log(`chatGPT回答: ${response}`)
+    response = response.replace(/我是 Assistant/g, "我是 conixBot")
   } catch(e) {
     log(e, testGroup)
   }
-  console.log(`chatGPT回答: ${response}`)
-  response = response.replace(/我是 Assistant/g, "我是 conixBot")
   return response
 }
 
