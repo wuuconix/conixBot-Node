@@ -38,8 +38,12 @@ async function handleGroupMessage(msg) {
   let text = chatMode ? messageChain[2].text.trim() : messageChain[1].text //查看消息链的第一个消息的文本
   test(msg)
   if (chatMode) {
-    const response = await chatGPT(text)
-    log(response, groupId, senderId)
+    try {
+      const response = await chatGPT(text)
+      log(response, groupId, senderId)
+    } catch(e) {
+      log(e.toString(), groupId, senderId)
+    }
     return
   }
   if (/^#hi$/.test(text)) {
@@ -214,16 +218,16 @@ async function qrCode(url, groupId, senderId) {
 async function chatGPT(question) {
   console.log(`chatGPT问题: ${question}`)
   const api = new ChatGPTAPI({ sessionToken: chatSessionToken })
-  let response
   try {
     await api.ensureAuth()
-    response = await api.sendMessage(question)
+    const response = await api.sendMessage(question, {
+      timeoutMs: 20 * 1000
+    })
     console.log(`chatGPT回答: ${response}`)
-    response = response.replace(/我是 Assistant/g, "我是 conixBot")
+    return response.replace(/我是 Assistant/g, "我是 conixBot")
   } catch(e) {
-    log(e, testGroup)
+    throw e
   }
-  return response
 }
 
 function test(msg) {

@@ -11,15 +11,15 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "chatgpt": "^1.2.0",
+    "chatgpt": "^2.0.1",
     "google-tts-api": "^2.0.2",
-    "node-fetch": "^3.2.4",
+    "node-fetch": "^3.3.0",
     "node-schedule": "^2.1.0",
     "undici": "^5.13.0",
-    "ws": "^8.6.0"
+    "ws": "^8.11.0"
   },
   "optionalDependencies": {
-    "bufferutil": "^4.0.6",
-    "utf-8-validate": "^5.0.9"
+    "bufferutil": "^4.0.7",
+    "utf-8-validate": "^5.0.10"
   }
 }
