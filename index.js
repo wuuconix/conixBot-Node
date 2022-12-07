@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, qqAI, chatSessionToken } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, differentDimensionMeAPI, chatSessionToken } from './config/config.js'
 import { ChatGPTAPI } from 'chatgpt'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
@@ -177,30 +177,19 @@ function log(e, groupId, senderId) { //发生异常时的日志
 }
 
 async function ai(url, groupId, senderId) {
-  let res
   try {
-    res = await fetch(url)
+    let res = await (await fetch(`${differentDimensionMeAPI}/?url=${encodeURIComponent(url)}`)).json()
+    console.log(res)
+    if (res.extra) {
+      res = JSON.parse(res.extra)
+      console.log(res)
+      sendGroupMessage({ target: groupId, messageChain:[{ type: "Image", url: res["img_urls"][1] }] })
+      log(JSON.stringify(res), testGroup)
+    } else {
+      log(JSON.stringify(res), groupId, senderId)
+    }
   } catch(e) {
-    return log(e, groupId, senderId)
-  }
-  const buffer = await res.arrayBuffer()
-  const base64 = Buffer.from(buffer).toString("base64")
-  const payload = { busiId: "ai_painting_anime_img_entry", images: [base64] }
-  console.log(payload)
-  res = await (await fetch(qqAI, {
-    method: "post",
-    body: JSON.stringify(payload),
-    headers: { "Content-Type": "application/json" }
-  })).text()
-  console.log(res)
-  const reg = /https:\/\/activity.tu.qq.com\/mqq\/ai_painting_anime\/share\/[\s\S]{36}.jpg/
-  const match = res.match(reg)
-  const result = match && match[0]
-  if (result && result.startsWith("https")) {
-    console.log(result)
-    sendGroupMessage({ target: groupId, messageChain:[{ type: "Image", url: result }] })
-  } else {
-    log(`data: ${res}`, groupId, senderId)
+    log(e, groupId)
   }
 }
 
