@@ -7,21 +7,28 @@ import { ChatGPTAPI } from 'chatgpt'
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 ws.on('message', handleMessage)
 
-function handleMessage(data) {
+async function handleMessage(data) {
   const msg = JSON.parse(data.toString())
   console.log(msg)
-  if (msg.syncId == '-1' && msg.data) { //syncId -1 系统消息/事件
+  if (msg.syncId == '-1' && msg.data) {         // syncId -1 系统消息/事件
     if (msg.data.type == "GroupMessage" && msg.data.messageChain.length >= 2) {
-      handleGroupMessage(msg)
+      const groupId = msg.data.sender.group.id  // 群号
+      const senderId = msg.data.sender.id       // 发送者qq号
+      try {
+        await handleGroupMessage(msg)
+      } catch(e) {
+        log(e, groupId, senderId)
+      }
     } else if (msg.data.type == "MemberCardChangeEvent") {
       const { origin, current, member: {id: memberId, group: {id: groupId}} } = msg.data
-      sendGroupMessage({ target: groupId, messageChain:[{ type: "At", target: memberId }, { type:"Plain", text: `\n检测到昵称变化\n${origin} -->  ${current}` }] })
+      log(`\n检测到昵称变化\n${origin} -->  ${current}`, groupId, memberId)
     }
-  } else if (msg.syncId == '114514') { //syncId 114514 机器人发送的消息
+  } else if (msg.syncId == '114514') {          // syncId 114514 机器人发送的消息
     if (msg.data.code != 0) {
       sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: msg.data.msg }] })
-    } else if (msg.data.messageId == -1) { //messageId 可能表示被腾讯服务器屏蔽了
-      sendGroupMessage({ target: testGroup, messageChain:[{ type: "Plain", text: "被腾讯ban了" }] })
+      log(msg.data.msg, testGroup)
+    } else if (msg.data.messageId == -1) {      // messageId 可能表示被腾讯服务器屏蔽了
+      log("被腾讯ban了", testGroup)
     }
   }
 }
@@ -31,19 +38,15 @@ const qrCodeMap = new Map()
 
 /* 处理群消息 */
 async function handleGroupMessage(msg) {
-  const groupId = msg.data.sender.group.id //群号
-  const senderId = msg.data.sender.id //发送者qq号
+  const groupId = msg.data.sender.group.id                                  //群号
+  const senderId = msg.data.sender.id                                       //发送者qq号
   const messageChain = msg.data.messageChain
   const chatMode = messageChain[1].type == "At" && messageChain[1].target == qq && messageChain[2] && messageChain[2].type == "Plain"
-  let text = chatMode ? messageChain[2].text.trim() : messageChain[1].text //查看消息链的第一个消息的文本
+  let text = chatMode ? messageChain[2].text.trim() : messageChain[1].text  //查看消息链的第一个消息的文本
   test(msg)
   if (chatMode) {
-    try {
-      const response = await chatGPT(text)
-      log(response, groupId, senderId)
-    } catch(e) {
-      log(e.toString(), groupId, senderId)
-    }
+    const response = await chatGPT(text)
+    log(response, groupId, senderId)
     return
   }
   if (/^#hi$/.test(text)) {
@@ -73,24 +76,32 @@ async function handleGroupMessage(msg) {
     }
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: addrInfo }] })
   } else if (/^#site /.test(text)) {
-    const site = encodeURIComponent(text.split(" ")[1]) //url-encode后的网址
+    const site = encodeURIComponent(text.split(" ")[1])                                     // url-encode后的网址
     const full = text.split(" ")[2] == "full" ? "&full_page=true" : ""
     let token
-    if (/conix/.test(site)) { //自己的网址使用自己的token
+    if (/conix/.test(site)) {                                                               // 自己的网址使用自己的token
       token = screenshotToken[0]
-    } else { //其他的用白嫖的token
-      token = screenshotToken[Math.floor(Math.random() * (screenshotToken.length - 1)) + 1] //从众多token中选择一个token
+    } else {                                                                                // 其他的用白嫖的token
+      token = screenshotToken[Math.floor(Math.random() * (screenshotToken.length - 1)) + 1] // 从众多token中选择一个token
     }
     console.log(`使用token: ${token}`)
     const url = `https://shot.screenshotapi.net/screenshot?token=${token}&url=${site}&width=1920&height=1080&fresh=true&output=image&file_type=png&wait_for_event=load${full}`
     console.log(url)
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Image", url }] })
   } else if (/^#music /.test(text)) {
-    const songId = text.split(" ")[1]
+    const input = text.split(" ")[1]
+    let songId = ""
+    if (/^(\d+)$/.test(input)) {          // 直接传入歌曲id
+      songId = input
+    } else if (/id=(\d+)/.test(input)) {  // 传入类似 https://music.163.com/song?id=528423473 的链接
+      songId = input.match(/id=(\d+)/)[1] // match数组的0号元素是整个字符串 1号元素才是捕获的括号
+    } else {
+      throw `格式错误 没有检测到歌曲id`
+    }
     const url = `https://api.injahow.cn/meting/?type=song&id=${songId}`
     let res = await (await fetch(url)).json()
     if (res.error) {
-      sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: res.error }] })
+      throw JSON.stringify(res)
     } else {
       let [{ name, artist, url, pic }] = res
       res = await fetch(pic, { redirect: "manual" })
@@ -98,39 +109,35 @@ async function handleGroupMessage(msg) {
       sendGroupMessage({ target: groupId, messageChain:[{ type: 'MusicShare', kind: 'NeteaseCloudMusic', title: name, summary: artist, jumpUrl: url, pictureUrl: pic, musicUrl: url, brief: `${name}` }]})
     }
   } else if (/^#b23 /.test(text)) {
-    const bvid = text.split(" ")[1]
+    if (!/BV[\da-zA-Z]{10}/.test(text)) {
+      throw "格式错误 没有检测到BV号"
+    }
+    const bvid = text.match(/BV[\da-zA-Z]{10}/)[0]  //这里没有括号，0号元素就是符合正则的那个字符串
+    console.log(bvid)
     const url = `https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`
     console.log(url)
-    try {
-      const res = await (await fetch(url)).json()
-      if (res.code == 0) { //正常
-        const {pic, title, owner: {name: up}} = res.data
-        sendGroupMessage({ target: groupId, messageChain:[{ type: 'MusicShare', kind: 'NeteaseCloudMusic', title, summary: up, jumpUrl: `https://www.bilibili.com/video/${bvid}`, pictureUrl: pic, musicUrl: "https://api.injahow.cn/meting/?server=netease&type=url&id=591321", brief: `${title}` }]})
-      } else {
-        sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: "BV号错误" }] })
-        log("BV号错误", groupId, senderId)
-      }
-    } catch(e) {
-      log(e, groupId, senderId)
+    const res = await (await fetch(url)).json()
+    if (res.code == 0) {
+      const { pic, title, owner: { name: up } } = res.data
+      console.log(pic)
+      sendGroupMessage({ target: groupId, messageChain:[{ type: 'MusicShare', kind: 'NeteaseCloudMusic', title, summary: up, jumpUrl: `https://www.bilibili.com/video/${bvid}`, pictureUrl: pic, musicUrl: "https://api.injahow.cn/meting/?server=netease&type=url&id=591321", brief: `${title}` }]})
+    } else {
+      throw JSON.stringify(res)
     }
   } else if (/^#setu/.test(text)) {
     const num = Number(new URLSearchParams(text.split(" ")[1] ?? "").get("num") ?? 1)
-    try {
-      for (let i = 0; i < num; i++) {
-        sendGroupMessage({ target: groupId, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
-      }
-    } catch(e) {
-      log(e, groupId, senderId)
+    for (let i = 0; i < num; i++) {
+      sendGroupMessage({ target: groupId, messageChain:[{ type: "Image", url: (await (await fetch(acgAPI)).json()).imgurl }] })
     }
   } else if (/^#ai/.test(text)) {
     const url1 = text.split(" ")[1]
     const url2 = messageChain[2] && messageChain[2].url
     if (url1) {
       console.log(url1)
-      ai(url1, groupId, senderId)
+      await ai(url1, groupId, senderId)
     } else if (url2) {
       console.log(url2)
-      ai(url2, groupId, senderId)
+      await ai(url2, groupId, senderId)
     } else {
       const key = `${groupId}-${senderId}`
       aiMap.set(key, (aiMap.get(key) ?? 0) + 1)
@@ -139,7 +146,7 @@ async function handleGroupMessage(msg) {
   } else if (/^#qrcode/.test(text)) {
     const url = messageChain[2] && messageChain[2].url
     if (url) {
-      qrCode(url, groupId, senderId)
+      await qrCode(url, groupId, senderId)
     } else {
       const key = `${groupId}-${senderId}`
       qrCodeMap.set(key, (qrCodeMap.get(key) ?? 0) + 1)
@@ -150,15 +157,15 @@ async function handleGroupMessage(msg) {
     const key = `${groupId}-${senderId}`
     if (aiMap.has(key) && aiMap.get(key) > 0) {
       const url = messageChain[1].url
-      ai(url, groupId, senderId)
       aiMap.set(key, aiMap.get(key) - 1)
       console.log(`aiMap ${key} 减少`)
+      await ai(url, groupId, senderId)
     }
     if (qrCodeMap.has(key) && qrCodeMap.get(key) > 0) {
       const url = messageChain[1].url
-      qrCode(url, groupId, senderId)
       qrCodeMap.set(key, qrCodeMap.get(key) - 1)
       console.log(`qrCodeMap ${key} 减少`)
+      await qrCode(url, groupId, senderId)
     }
   }
 }
@@ -172,32 +179,20 @@ function sendGroupMessage(content) {
   }))
 }
 
-function log(e, groupId, senderId) { //发生异常时的日志
-  if (!senderId) {
-    sendGroupMessage({ target: groupId, messageChain:[{ type: "Plain", text: e }] })
-  } else {
-    sendGroupMessage({ target: groupId, messageChain:[{ type: "At", target: senderId }, { type: "Plain", text: ` ${e}` }] })
-  }
-}
-
 async function ai(url, groupId, senderId) {
-  try {
-    let res = await (await fetch(`${differentDimensionMeAPI}/?url=${encodeURIComponent(url)}`)).json()
+  let res = await (await fetch(`${differentDimensionMeAPI}/?url=${encodeURIComponent(url)}`)).json()
+  console.log(res)
+  if (res.extra) {
+    res = JSON.parse(res.extra)
     console.log(res)
-    if (res.extra) {
-      res = JSON.parse(res.extra)
-      console.log(res)
-      sendGroupMessage({ target: groupId, messageChain:[{ type: "Image", url: res["img_urls"][1] }] })
-      log(JSON.stringify(res), testGroup)
-    } else {
-      log(JSON.stringify(res), groupId, senderId)
-    }
-  } catch(e) {
-    log(e, groupId)
+    sendGroupMessage({ target: groupId, messageChain:[{ type: "Image", url: res["img_urls"][1] }] })
+    log(JSON.stringify(res), testGroup)
+  } else {
+    throw JSON.stringify(res)
   }
 }
 
-async function qrCode(url, groupId, senderId) {
+async function qrCode(url, groupId) {
   const res = await (await fetch("https://sotool.net/qrcode-scanner", {
     method: "post",
     headers: {
@@ -211,22 +206,26 @@ async function qrCode(url, groupId, senderId) {
   if (res.code == 200) {
     log(`二维码扫描结果: ${res.result.data}`, groupId)
   } else {
-    log(JSON.stringify(res), groupId, senderId)
+    throw JSON.stringify(res)
   }
 }
 
 async function chatGPT(question) {
   console.log(`chatGPT问题: ${question}`)
   const api = new ChatGPTAPI({ sessionToken: chatSessionToken })
-  try {
-    await api.ensureAuth()
-    const response = await api.sendMessage(question, {
-      timeoutMs: 20 * 1000
-    })
-    console.log(`chatGPT回答: ${response}`)
-    return response.replace(/我是 Assistant/g, "我是 conixBot")
-  } catch(e) {
-    throw e
+  await api.ensureAuth()
+  const response = await api.sendMessage(question, {
+    timeoutMs: 20 * 1000
+  })
+  console.log(`chatGPT回答: ${response}`)
+  return response.replace(/我是 Assistant/g, "我是 conixBot")
+}
+
+function log(e, groupId, senderId) { //发生异常时的日志
+  if (!senderId) {
+    sendGroupMessage({ target: groupId, messageChain:[{ type: "Plain", text: e }] })
+  } else {
+    sendGroupMessage({ target: groupId, messageChain:[{ type: "At", target: senderId }, { type: "Plain", text: ` ${e}` }] })
   }
 }
 
