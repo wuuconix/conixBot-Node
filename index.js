@@ -222,8 +222,9 @@ app.get('/log', (req, res) => {
   if (req.query.msg) {
     log(req.query.msg, testGroup)
     res.send("sent")
+  } else {
+    res.send("error")
   }
-  res.send("error")
 })
 app.listen(3000, "0.0.0.0", () => {
   console.log("express started in port 3000")
