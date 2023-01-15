@@ -1,8 +1,8 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, differentDimensionMeAPI, chatSessionToken } from './config/config.js'
-import { ChatGPTAPI } from 'chatgpt'
+import express from 'express'
+import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, differentDimensionMeAPI } from './config/config.js'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 ws.on('message', handleMessage)
@@ -38,17 +38,11 @@ const qrCodeMap = new Map()
 
 /* 处理群消息 */
 async function handleGroupMessage(msg) {
-  const groupId = msg.data.sender.group.id                                  //群号
-  const senderId = msg.data.sender.id                                       //发送者qq号
+  const groupId = msg.data.sender.group.id            // 群号
+  const senderId = msg.data.sender.id                 // 发送者qq号
   const messageChain = msg.data.messageChain
-  const chatMode = messageChain[1].type == "At" && messageChain[1].target == qq && messageChain[2] && messageChain[2].type == "Plain"
-  let text = chatMode ? messageChain[2].text.trim() : messageChain[1].text  //查看消息链的第一个消息的文本
+  let text = messageChain[1].text                     //查看消息链的第一个消息的文本
   test(msg)
-  if (chatMode) {
-    const response = await chatGPT(text)
-    log(response, groupId, senderId)
-    return
-  }
   if (/^#hi$/.test(text)) {
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: "我是conixBot😊 基于Mirai-api-http Websocket Adapter🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎" }] })
   } else if (/^#repeat /.test(text)) {
@@ -134,10 +128,10 @@ async function handleGroupMessage(msg) {
     const url2 = messageChain[2] && messageChain[2].url
     if (url1) {
       console.log(url1)
-      await ai(url1, groupId, senderId)
+      await ai(url1, groupId)
     } else if (url2) {
       console.log(url2)
-      await ai(url2, groupId, senderId)
+      await ai(url2, groupId)
     } else {
       const key = `${groupId}-${senderId}`
       aiMap.set(key, (aiMap.get(key) ?? 0) + 1)
@@ -159,7 +153,7 @@ async function handleGroupMessage(msg) {
       const url = messageChain[1].url
       aiMap.set(key, aiMap.get(key) - 1)
       console.log(`aiMap ${key} 减少`)
-      await ai(url, groupId, senderId)
+      await ai(url, groupId)
     }
     if (qrCodeMap.has(key) && qrCodeMap.get(key) > 0) {
       const url = messageChain[1].url
@@ -179,7 +173,7 @@ function sendGroupMessage(content) {
   }))
 }
 
-async function ai(url, groupId, senderId) {
+async function ai(url, groupId) {
   let res = await (await fetch(`${differentDimensionMeAPI}/?url=${encodeURIComponent(url)}`)).json()
   console.log(res)
   if (res.extra) {
@@ -210,17 +204,6 @@ async function qrCode(url, groupId) {
   }
 }
 
-async function chatGPT(question) {
-  console.log(`chatGPT问题: ${question}`)
-  const api = new ChatGPTAPI({ sessionToken: chatSessionToken })
-  await api.ensureAuth()
-  const response = await api.sendMessage(question, {
-    timeoutMs: 20 * 1000
-  })
-  console.log(`chatGPT回答: ${response}`)
-  return response.replace(/我是 Assistant/g, "我是 conixBot")
-}
-
 function log(e, groupId, senderId) { //发生异常时的日志
   if (!senderId) {
     sendGroupMessage({ target: groupId, messageChain:[{ type: "Plain", text: e }] })
@@ -233,3 +216,15 @@ function test(msg) {
   const messageChain = msg.data.messageChain
   console.log(messageChain)
 }
+
+const app = express()
+app.get('/log', (req, res) => {
+  if (req.query.msg) {
+    log(req.query.msg, testGroup)
+    res.send("sent")
+  }
+  res.send("error")
+})
+app.listen(3000, "0.0.0.0", () => {
+  console.log("express started in port 3000")
+})
