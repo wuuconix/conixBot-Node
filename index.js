@@ -1,8 +1,7 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import express from 'express'
-import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, differentDimensionMeAPI, qqEmailPass, qqEmailAccount, emailTo, setu } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotAPI, testGroup, acgAPI, differentDimensionMeAPI, qqEmailPass, qqEmailAccount, emailTo, setu } from './config/config.js'
 import nodemailer from "nodemailer"
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
@@ -75,15 +74,7 @@ async function handleGroupMessage(msg) {
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Plain", text: addrInfo }] })
   } else if (/^#site /.test(text)) {
     const site = encodeURIComponent(text.split(" ")[1])                                     // url-encode后的网址
-    const full = text.split(" ")[2] == "full" ? "&full_page=true" : ""
-    let token
-    if (/conix/.test(site)) {                                                               // 自己的网址使用自己的token
-      token = screenshotToken[0]
-    } else {                                                                                // 其他的用白嫖的token
-      token = screenshotToken[Math.floor(Math.random() * (screenshotToken.length - 1)) + 1] // 从众多token中选择一个token
-    }
-    console.log(`使用token: ${token}`)
-    const url = `https://shot.screenshotapi.net/screenshot?token=${token}&url=${site}&width=1920&height=1080&fresh=true&output=image&file_type=png&wait_for_event=load${full}`
+    const url = `${screenshotAPI}?url=${site}`
     console.log(url)
     sendGroupMessage({ target: groupId, messageChain:[{ type:"Image", url }] })
   } else if (/^#music /.test(text)) {
@@ -240,16 +231,3 @@ async function sendEmail() {
   console.log("Message sent: %s", info.messageId)
   console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info))
 }
-
-const app = express()
-app.get('/log', (req, res) => {
-  if (req.query.msg) {
-    log(req.query.msg, testGroup)
-    res.send("sent")
-  } else {
-    res.send("error")
-  }
-})
-app.listen(3000, "0.0.0.0", () => {
-  console.log("express started in port 3000")
-})
