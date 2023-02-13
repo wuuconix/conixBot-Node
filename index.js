@@ -2,7 +2,8 @@ import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
 import express from 'express'
-import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, differentDimensionMeAPI } from './config/config.js'
+import { baseURL, qq, verifyKey, screenshotToken, testGroup, acgAPI, differentDimensionMeAPI, qqEmailPass, qqEmailAccount, emailTo, setu } from './config/config.js'
+import nodemailer from "nodemailer"
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 ws.on('message', handleMessage)
@@ -22,6 +23,9 @@ async function handleMessage(data) {
     } else if (msg.data.type == "MemberCardChangeEvent") {
       const { origin, current, member: {id: memberId, group: {id: groupId}} } = msg.data
       log(`\n检测到昵称变化\n${origin} -->  ${current}`, groupId, memberId)
+    } else if (msg.data.type == "BotOfflineEventDropped") {
+      sendEmail()
+      log("机器人掉线 已发送邮件提醒")
     }
   } else if (msg.syncId == '114514') {          // syncId 114514 机器人发送的消息
     if (msg.data.code != 0) {
@@ -215,6 +219,26 @@ function log(e, groupId, senderId) { //发生异常时的日志
 function test(msg) {
   const messageChain = msg.data.messageChain
   console.log(messageChain)
+}
+
+async function sendEmail() {
+  const transporter = nodemailer.createTransport({
+    host: "smtp.qq.com",
+    port: 465,
+    auth: {
+      user: qqEmailAccount,
+      pass: qqEmailPass
+    }
+  })
+  const info = await transporter.sendMail({
+    from: `"conixBot" <${qqEmailAccount}>`,
+    to: `${emailTo}`,
+    subject: "conixBot 下线提示",
+    text: "conixBot已下线 请重新登录",
+    html: `<h2 style="color: red">conixBot已下线 请重新登录</h2><br><img width="70%" src="${setu}&rand=${+Date.now()}">`
+  })
+  console.log("Message sent: %s", info.messageId)
+  console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info))
 }
 
 const app = express()
