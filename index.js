@@ -24,7 +24,7 @@ async function handleMessage(data) {
       log(`\n检测到昵称变化\n${origin} -->  ${current}`, groupId, memberId)
     } else if (msg.data.type == "BotOfflineEventDropped") {
       sendEmail()
-      log("机器人掉线 已发送邮件提醒")
+      console.log("机器人掉线 已发送邮件提醒")
     }
   } else if (msg.syncId == '114514') {          // syncId 114514 机器人发送的消息
     if (msg.data.code != 0) {
