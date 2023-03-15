@@ -26,11 +26,11 @@ async function handleMessage(data) {
       sendEmail()
       console.log("机器人掉线 已发送邮件提醒")
     }
-  } else if (msg.syncId == '114514') {          // syncId 114514 机器人发送的消息
-    if (msg.data.code != 0) {
+  } else if (msg.syncId == '114514') {                // syncId 114514 机器人发送的消息
+    if (msg.data.code != 0 && msg.data.code != 5) {   // code=5 表示机器人已离线
       sendGroupMessage({ target: testGroup, messageChain:[{ type:"Plain", text: msg.data.msg }] })
       log(msg.data.msg, testGroup)
-    } else if (msg.data.messageId == -1) {      // messageId 可能表示被腾讯服务器屏蔽了
+    } else if (msg.data.messageId == -1) {           // messageId 可能表示被腾讯服务器屏蔽了
       log("被腾讯ban了", testGroup)
     }
   }
