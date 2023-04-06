@@ -1,8 +1,7 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, qq, verifyKey, screenshotAPI, testGroup, acgAPI, differentDimensionMeAPI, qqEmailPass, qqEmailAccount, emailTo, setu } from './config/config.js'
-import nodemailer from "nodemailer"
+import { baseURL, qq, verifyKey, screenshotAPI, testGroup, acgAPI, differentDimensionMeAPI, alertAPI } from './config/config.js'
 
 const ws = new WebSocket(`ws://${baseURL}/all?verifyKey=${verifyKey}&qq=${qq}`)
 ws.on('message', handleMessage)
@@ -23,8 +22,11 @@ async function handleMessage(data) {
       const { origin, current, member: {id: memberId, group: {id: groupId}} } = msg.data
       log(`\n检测到昵称变化\n${origin} -->  ${current}`, groupId, memberId)
     } else if (msg.data.type == "BotOfflineEventDropped") {
-      sendEmail()
-      console.log("机器人掉线 已发送邮件提醒")
+      const res = await alert("🚫conixBot机器人已掉线")
+      console.log(res)
+    } else if (msg.data.type == "BotOnlineEvent") {
+      const res = await alert("❇️conixBot机器人已自动重连")
+      console.log(res)
     }
   } else if (msg.syncId == '114514') {                // syncId 114514 机器人发送的消息
     if (msg.data.code != 0 && msg.data.code != 5) {   // code=5 表示机器人已离线
@@ -212,22 +214,7 @@ function test(msg) {
   console.log(messageChain)
 }
 
-async function sendEmail() {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.qq.com",
-    port: 465,
-    auth: {
-      user: qqEmailAccount,
-      pass: qqEmailPass
-    }
-  })
-  const info = await transporter.sendMail({
-    from: `"conixBot" <${qqEmailAccount}>`,
-    to: `${emailTo}`,
-    subject: "conixBot 下线提示",
-    text: "conixBot已下线 请重新登录",
-    html: `<h2 style="color: red">conixBot已下线 请重新登录</h2><br><img width="70%" src="${setu}&rand=${+Date.now()}">`
-  })
-  console.log("Message sent: %s", info.messageId)
-  console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info))
+async function alert(content) {
+  const res = await (await fetch(`${alertAPI}?content=${content}`)).json()
+  return res
 }
