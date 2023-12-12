@@ -1,13 +1,20 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, screenshotAPI, testGroup, setuAPI, differentDimensionMeAPI, alertAPI } from './config/config.js'
+import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI } from './config/config.js'
 
-const ws = new WebSocket(`ws://${baseURL}`)
+const ws = new WebSocket(`ws://${baseURL}`, {
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
+})
+
 ws.on('message', handleEvent)
 
 async function handleEvent(data) {
   const event = JSON.parse(data.toString())
+
+  console.log(event)
   // if (event.message) {
   //   for (let message of event.message) {
   //     console.log(message)
@@ -59,11 +66,13 @@ async function handleGroupMessage(event) {
   }
 
   /* 发送语音 */
-  // if (/^#say /.test(text)) {
-  //   const content = text.slice(5)
-  //   const url = googleTTS.getAudioUrl(content, { lang: 'zh', slow: false, host: 'https://translate.google.com' })
-  //   return sendGroupMessage({ target: groupId, messageChain:[{ type:"Voice", url }] })
-  // }
+  if (/^#say /.test(text)) {
+    const content = text.slice(5)
+    console.log(content)
+    const url = googleTTS.getAudioUrl(content, { lang: 'zh', slow: false, host: 'https://translate.google.com' })
+    console.log(url)
+    return sendGroupMessage(groupId, genRecordMessage(url))
+  }
   
   /* 查询网站信息 */
   if (/^#nslookup /.test(text)) {
@@ -84,6 +93,19 @@ async function handleGroupMessage(event) {
       addrInfo = `IP: ${res['query']}\n国家: ${res['country']}\n城市: ${res['regionName']}${res['city']}\nISP: ${res['isp']}\n组织: ${res['org']}`
     }
     return sendGroupMessage(groupId, genTextMessage(addrInfo))
+  }
+  
+  /* AI绘图 */
+  if (/^#ai/.test(text)) {
+    const url1 = messageSegment?.[1].type == 'text' && messageSegment?.[1].data.text
+    const url2 = messageSegment?.[1].type == 'image' && messageSegment?.[1].data.url
+    if (url1) {
+      console.log(url1)
+      await ai(url1, groupId)
+    } else if (url2) {
+      console.log(url2)
+      await ai(url2, groupId)
+    }
   }
   
   /* 获取网站截图 */
@@ -142,20 +164,6 @@ async function handleGroupMessage(event) {
   //     throw JSON.stringify(res)
   //   }
   // }
-  
-
-  /* AI绘图 */
-  if (/^#ai/.test(text)) {
-    const url1 = messageSegment?.[1].type == 'text' && messageSegment?.[1].data.text
-    const url2 = messageSegment?.[1].type == 'image' && messageSegment?.[1].data.url
-    if (url1) {
-      console.log(url1)
-      await ai(url1, groupId)
-    } else if (url2) {
-      console.log(url2)
-      await ai(url2, groupId)
-    }
-  }
 }
 
 function genTextMessage(text) {
@@ -168,6 +176,15 @@ function genTextMessage(text) {
 function genImageMessage(url) {
   return {
     type: 'image',
+    data: {
+      file: url
+    }
+  }
+}
+
+function genRecordMessage(url) {
+  return {
+    type: 'record',
     data: {
       file: url
     }
