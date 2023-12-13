@@ -3,13 +3,28 @@ import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
 import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI } from './config/config.js'
 
-const ws = new WebSocket(`ws://${baseURL}`, {
-  headers: {
-    Authorization: `Bearer ${token}`
-  }
-})
+let ws = ""
 
-ws.on('message', handleEvent)
+function initWebSocket() {
+  ws = new WebSocket(`ws://${baseURL}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  })
+
+  ws.on('message', handleEvent)
+
+  ws.on('close', () => {
+    alert("websocket close!")
+    try {
+      initWebSocket()
+    } catch(e) {
+      alert(JSON.stringify(e))
+    }
+  })
+}
+
+initWebSocket()
 
 async function handleEvent(data) {
   const event = JSON.parse(data.toString())
@@ -24,6 +39,7 @@ async function handleEvent(data) {
     try {
       await handleGroupMessage(event)
     } catch(e) {
+      console.log(JSON.stringify(e))
       log(JSON.stringify(e), testGroup)
     }
   }
@@ -38,30 +54,32 @@ async function handleGroupMessage(event) {
 
   /* 打招呼 */
   if (/^#hi$/.test(text)) {
-    return sendGroupMessage(groupId, [genTextMessage("我是conixBot😊 基于OpenShamrock🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎")])
+    return sendGroupMessage(groupId, genTextMessage("我是conixBot😊 基于OpenShamrock🎈\nGithub: https://github.com/wuuconix/conixBot-Node ⭐\n仓库README里有命令使用说明哦💎"))
   }
-  
+
   /* 复读机 */
   if (/^#repeat /.test(text)) {
     const content = text.slice(8)
     const otherMsgSegment = messageSegment.slice(1)
     return sendGroupMessage(groupId, [genTextMessage(content), ...otherMsgSegment])
   }
-  
+
   /* 发送指定url的网络图片 */
-  /* OpenShamrock会自动将文本中的链接单独设置为一个text消息 */
   if (/^#img /.test(text)) {
-    for (let message of messageSegment.slice(1)) {
-      if (message.type == 'text' && message.data.text != ' ') {
-        console.log(message.data.text)
-        return sendGroupMessage(groupId, [genImageMessage(message.data.text)])
-      }
-    }
+    const url = getURL(messageSegment)
+    console.log(url)
+    return sendGroupMessage(groupId, genImageMessage(url))
   }
 
   /* 涩图 */
   if (/^#setu/.test(text)) {
-    const url = (await (await fetch(setuAPI)).json()).data?.[0].urls.original
+    const apiURL = new URL(setuAPI)
+
+    if (text.split(" ").length >= 2) {
+      apiURL.search = new URLSearchParams(text.split(" ")[1])
+    }
+
+    const url = (await (await fetch(apiURL.href)).json()).data?.[0].urls[apiURL.searchParams.get("size") ?? 'regular']
     return sendGroupMessage( groupId, genImageMessage(url))
   }
 
@@ -73,17 +91,11 @@ async function handleGroupMessage(event) {
     console.log(url)
     return sendGroupMessage(groupId, genRecordMessage(url))
   }
-  
+
   /* 查询网站信息 */
   if (/^#nslookup /.test(text)) {
-    let target = ""
-    if (text.split(" ")[1] != '') {
-      target = text.split(" ")[1]
-    } else if (messageSegment?.[1].type == 'text') {
-      target = messageSegment[1].data.text.replace("https://", "").replace("http://", "").split("/")[0]
-    } else {
-      return
-    }
+    let target = getURL(messageSegment)
+    target = target.replace("https://", "").replace("http://", "").split("/")[0]
     const url = `http://ip-api.com/json/${target}?lang=zh-CN`
     let res = await (await fetch(url)).json()
     let addrInfo
@@ -94,10 +106,10 @@ async function handleGroupMessage(event) {
     }
     return sendGroupMessage(groupId, genTextMessage(addrInfo))
   }
-  
+
   /* AI绘图 */
   if (/^#ai/.test(text)) {
-    const url1 = messageSegment?.[1].type == 'text' && messageSegment?.[1].data.text
+    const url1 = getURL(messageSegment)
     const url2 = messageSegment?.[1].type == 'image' && messageSegment?.[1].data.url
     if (url1) {
       console.log(url1)
@@ -107,7 +119,7 @@ async function handleGroupMessage(event) {
       await ai(url2, groupId)
     }
   }
-  
+
   /* 获取网站截图 */
   // if (/^#site /.test(text)) {
   //   let target = ""
@@ -124,7 +136,7 @@ async function handleGroupMessage(event) {
   //   console.log(url)
   //   return sendGroupMessage(groupId, genImageMessage(url))
   // }
-  
+
   // if (/^#music /.test(text)) {
   //   const input = text.split(" ")[1]
   //   let songId = ""
@@ -146,7 +158,7 @@ async function handleGroupMessage(event) {
   //     return sendGroupMessage({ target: groupId, messageChain:[{ type: 'MusicShare', kind: 'NeteaseCloudMusic', title: name, summary: artist, jumpUrl: url, pictureUrl: pic, musicUrl: url, brief: `${name}` }]})
   //   }
   // }
-  
+
   // if (/^#b23 /.test(text)) {
   //   if (!/BV[\da-zA-Z]{10}/.test(text)) {
   //     throw "格式错误 没有检测到BV号"
@@ -164,6 +176,23 @@ async function handleGroupMessage(event) {
   //     throw JSON.stringify(res)
   //   }
   // }
+}
+
+function getURL(messageSegment) {
+  if (messageSegment[0].type != 'text') {
+    return ''
+  }
+
+  let url = messageSegment[0].data.text.split(' ')?.[1]
+  if (url) {
+    return url
+  }
+
+  if (messageSegment?.[1].type == 'text') {
+    return messageSegment?.[1].data.text
+  }
+
+  return ''
 }
 
 function genTextMessage(text) {
