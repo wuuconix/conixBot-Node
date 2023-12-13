@@ -79,8 +79,13 @@ async function handleGroupMessage(event) {
       apiURL.search = new URLSearchParams(text.split(" ")[1])
     }
 
-    const url = (await (await fetch(apiURL.href)).json()).data?.[0].urls[apiURL.searchParams.get("size") ?? 'regular']
-    return sendGroupMessage( groupId, genImageMessage(url))
+    const data = (await (await fetch(apiURL.href)).json())?.data
+
+    for (let item of data) {
+      sendGroupMessage(groupId, genImageMessage(item.urls[apiURL.searchParams.get("size") ?? 'regular']))
+    }
+
+    return
   }
 
   /* 发送语音 */
