@@ -3,7 +3,8 @@ import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
 import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI } from './config/config.js'
 
-let ws = ""
+let ws = new WebSocket(null)
+let lastMsgTimeStamp = 0
 
 function initWebSocket() {
   ws = new WebSocket(`ws://${baseURL}`, {
@@ -12,29 +13,40 @@ function initWebSocket() {
     }
   })
 
-  ws.on('message', handleEvent)
+  ws.on('open', () => {
+    console.log("ws connection starts!")
+  })
 
-  ws.on('close', () => {
-    alert("websocket close!")
-    try {
-      initWebSocket()
-    } catch(e) {
-      alert(JSON.stringify(e))
-    }
+  ws.on('error', () => {
+    console.log('ws connection failed!')
+    ws.terminate()
+    initWebSocket()
+  })
+
+  ws.on('message', (data) => {
+    lastMsgTimeStamp = Date.now() / 1000
+    handleEvent(data)
   })
 }
 
 initWebSocket()
 
+/* 定时检测心跳，无心跳则重启ws链接 */
+setInterval(() => {
+  if (Date.now() / 1000 - lastMsgTimeStamp > 30) {
+    console.log(`lastMsgTimeStamp: ${lastMsgTimeStamp}`)
+    console.log(`nowTimeStamp: ${Date.now() / 1000}`)
+    console.log("restart!")
+    ws.terminate()
+    initWebSocket()
+  }
+}, 1000 * 30)
+
 async function handleEvent(data) {
   const event = JSON.parse(data.toString())
 
   console.log(event)
-  // if (event.message) {
-  //   for (let message of event.message) {
-  //     console.log(message)
-  //   }
-  // }
+
   if (event.post_type == 'message' && event.message_type == 'group' && event.message[0].type == 'text') {
     try {
       await handleGroupMessage(event)
