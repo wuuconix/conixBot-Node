@@ -1,7 +1,7 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
-import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI } from './config/config.js'
+import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI, commonAPI } from './config/config.js'
 
 let ws = new WebSocket(null)
 let lastMsgTimeStamp = 0
@@ -98,6 +98,22 @@ async function handleGroupMessage(event) {
     }
 
     return
+  }
+
+  if (/^#common/.test(text)) {
+    const commonURL = new URL(commonAPI)
+
+    if (text.split(" ").length >= 2) {
+      commonURL.search = new URLSearchParams(`category=${text.split(" ")[1]}`)
+    }
+
+    const res = (await (await fetch(commonURL.href)).json())
+    if (res.err) {
+      return log(JSON.stringify(res), groupId)
+    }
+
+    const { commonSense } = res
+    return sendGroupMessage(groupId, genTextMessage(commonSense))
   }
 
   /* 发送语音 */
