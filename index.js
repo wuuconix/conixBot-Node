@@ -1,6 +1,8 @@
 import WebSocket from 'ws'
 import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
+import randomEmoji from '@sefinek/random-emoji'
+
 import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI, commonAPI } from './config/config.js'
 
 let ws = new WebSocket(null)
@@ -104,7 +106,13 @@ async function handleGroupMessage(event) {
     const commonURL = new URL(commonAPI)
 
     if (text.split(" ").length >= 2) {
-      commonURL.search = new URLSearchParams(`category=${text.split(" ")[1]}`)
+      console.log(text.split(" ")[1])
+  
+      if (text.split(" ")[1] == "list") {
+        commonURL.search = new URLSearchParams(`list=1`)
+      } else {
+        commonURL.search = new URLSearchParams(`category=${text.split(" ")[1]}`)
+      }
     }
 
     const res = (await (await fetch(commonURL.href)).json())
@@ -112,8 +120,13 @@ async function handleGroupMessage(event) {
       return log(JSON.stringify(res), groupId)
     }
 
-    const { commonSense } = res
-    return sendGroupMessage(groupId, genTextMessage(commonSense))
+    const { commonSense, category } = res
+
+    if (commonSense) {
+      return sendGroupMessage(groupId, genTextMessage(commonSense))
+    }
+
+    return sendGroupMessage(groupId, genTextMessage(`conixBot常识目前涵盖以下领域💕\n${customEmojiJoin(category)}`))
   }
 
   /* 发送语音 */
@@ -260,6 +273,14 @@ function genAtMessage(target) {
       qq: target
     }
   }
+}
+
+function customEmojiJoin(list) {
+  let res = ""
+  for (let i = 0; i < list.length; i++) {
+    res += (`${randomEmoji.foods().content}${list[i]}` + ((i < list.length - 1) ? '\n' : ''))
+  }
+  return res
 }
 
 function sendGroupMessage(groupId, messageSegment) {
