@@ -22,7 +22,11 @@ function initWebSocket() {
   ws.on('error', () => {
     console.log('ws connection failed!')
     ws.terminate()
-    initWebSocket()
+
+    /* 每半分钟尝试重新连接 */
+    setTimeout(() => {
+      initWebSocket()
+    }, 1000 * 30)
   })
 
   ws.on('message', (data) => {
