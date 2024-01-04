@@ -3,7 +3,7 @@ import * as googleTTS from 'google-tts-api'
 import fetch from 'node-fetch'
 import randomEmoji from '@sefinek/random-emoji'
 
-import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI, commonAPI } from './config/config.js'
+import { baseURL, token, testGroup, setuAPI, differentDimensionMeAPI, alertAPI, commonAPI, screenshotAPI } from './config/config.js'
 
 let ws = new WebSocket(null)
 let lastMsgTimeStamp = 0
@@ -171,21 +171,25 @@ async function handleGroupMessage(event) {
   }
 
   /* 获取网站截图 */
-  // if (/^#site /.test(text)) {
-  //   let target = ""
-  //   if (text.split(" ")[1] != '') {
-  //     target = text.split(" ")[1]
-  //   } else if (messageSegment?.[1].type == 'text') {
-  //     target = messageSegment[1].data.text
-  //   } else {
-  //     return
-  //   }
+  if (/^#site /.test(text)) {
+    let target = getURL(messageSegment)
+    const site = encodeURIComponent(target)
+    let full = messageSegment[messageSegment.length - 1].type == "text" && messageSegment[messageSegment.length - 1].data.text.includes("full") 
+    let url = ""
 
-  //   const site = encodeURIComponent(target)
-  //   const url = `${screenshotAPI}?url=${site}`
-  //   console.log(url)
-  //   return sendGroupMessage(groupId, genImageMessage(url))
-  // }
+    if (full) {
+      url = `${screenshotAPI}?url=${site}&full=1`
+    } else {
+      url = `${screenshotAPI}?url=${site}`
+    }
+
+    console.log(url)
+
+    const arrayBuffer = await (await fetch(url)).arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString("base64")
+
+    return sendGroupMessage(groupId, genImageMessage(`base64://${base64}`))
+  }
 
   // if (/^#music /.test(text)) {
   //   const input = text.split(" ")[1]
